@@ -1,65 +1,82 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import { useState } from 'react';
+import { InfoSidebar } from './components/calendar/InfoSidebar';
+import { CalendarGrid } from './components/calendar/CalendarGrid';
+import { TimePicker } from './components/calendar/TimePicker';
+import { BookingForm } from './components/calendar/BookingForm';
+import { SuccessView } from './components/calendar/SuccessView';
+
+export default function CalendarPage() {
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [selectedTime, setSelectedTime] = useState<string | null>(null);
+  const [selectedLocation, setSelectedLocation] = useState<string | null>(null);
+  const [currentMonth, setCurrentMonth] = useState(new Date());
+  
+  const [isConfirmed, setIsConfirmed] = useState(false); // Étape Formulaire
+  const [isFinished, setIsFinished] = useState(false);   // Étape Succès
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+    <div className="min-h-screen bg-black flex items-center justify-center p-4 text-white">
+      <div className={`
+        bg-[#1a1a1a] border border-neutral-800 rounded-xl shadow-2xl 
+        flex overflow-hidden transition-all duration-500
+        ${isFinished ? 'max-w-3xl' : isConfirmed ? 'max-w-5xl' : selectedDate ? 'max-w-6xl' : 'max-w-4xl'} 
+        w-full min-h-[640px]
+      `}>
+        
+        {/* Sidebar : On la cache uniquement sur l'écran de succès final */}
+        {!isFinished && (
+          <InfoSidebar 
+            selectedDate={selectedDate} 
+            selectedTime={selectedTime} 
+            location={selectedLocation} 
+          />
+        )}
+
+        {isFinished ? (
+          <SuccessView 
+            selectedDate={selectedDate!} 
+            selectedTime={selectedTime!} 
+            location={selectedLocation!} 
+          />
+        ) : isConfirmed ? (
+          <BookingForm 
+            selectedDate={selectedDate!} 
+            selectedTime={selectedTime!} 
+            onLocationChange={setSelectedLocation}
+            onBack={() => setIsConfirmed(false)}
+            onComplete={() => setIsFinished(true)}
+          />
+        ) : (
+          <>
+            <div className={`flex-1 transition-all ${selectedDate ? 'border-r border-neutral-800' : ''}`}>
+              <CalendarGrid 
+                currentMonth={currentMonth}
+                setCurrentMonth={setCurrentMonth}
+                selectedDate={selectedDate}
+                onSelectDate={(date) => {
+                  setSelectedDate(date);
+                  setSelectedTime(null);
+                }}
+              />
+            </div>
+
+            {selectedDate && (
+              <div className="w-[320px] animate-in fade-in slide-in-from-right-4">
+                <TimePicker 
+                  selectedDate={selectedDate} 
+                  onCancel={() => setSelectedDate(null)}
+                  onConfirmTime={(time) => {
+                    setSelectedTime(time);
+                    setIsConfirmed(true);
+                  }}
+                />
+              </div>
+            )}
+          </>
+        )}
+      </div>
     </div>
   );
 }
