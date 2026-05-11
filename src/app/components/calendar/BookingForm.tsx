@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { ArrowLeft, Video, Phone, MessageCircle } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -15,6 +16,7 @@ interface BookingFormProps {
 export const BookingForm = ({ selectedDate, selectedTime, onBack, onLocationChange, onComplete }: BookingFormProps) => {
   const [location, setLocation] = useState('');
   const [loading, setLoading] = useState(false);
+  const router = useRouter();
 
   const handleLocationSelect = (loc: string) => {
     let label = "";
@@ -36,39 +38,57 @@ export const BookingForm = ({ selectedDate, selectedTime, onBack, onLocationChan
 
     setLoading(true);
 
-    // On récupère les valeurs pour plus tard
+    // Récupère les valeurs du formulaire de façon sûre (string)
     const form = e.currentTarget as HTMLFormElement;
     const fd = new FormData(form);
-    const payload = {
-      name: fd.get('fullName'),
-      email: fd.get('email'),
-      notes: fd.get('notes'),
-      location: location,
+    const name = fd.get('fullName')?.toString().trim() || '';
+    const email = fd.get('email')?.toString().trim() || '';
+    const notes = fd.get('notes')?.toString().trim() || '';
+
+    const payload: any = {
+      name,
+      email,
+      notes,
+      location,
       date: format(selectedDate, 'yyyy-MM-dd'),
       time: selectedTime,
     };
 
     try {
-      // TENTATIVE D'APPEL API
       const res = await fetch('/api/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
 
-      // SI L'API RÉPOND OK, ON PASSE À LA SUITE
-      if (res.ok) {
-        onComplete();
-      } else {
-        // SI L'API N'EXISTE PAS ENCORE (404) OU ERREUR (500)
-        // ON FORCE QUAND MÊME LE SUCCÈS POUR TON TEST VISUEL
-        console.warn("L'API n'a pas répondu correctement, mais on affiche le succès pour le test.");
-        onComplete();
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        const message = data?.error || 'Erreur serveur lors de la réservation.';
+        // If the slot is already taken, show a simple alert and redirect to booking page
+        if (res.status === 409 || (typeof message === 'string' && message.includes('Le créneau'))) {
+          alert('Ce créneau est déjà réservé. Veuillez choisir un autre créneau.');
+          router.push('/');
+          return;
+        }
+
+        console.error('API error:', message, data);
+        alert('Erreur: ' + message);
+        return;
       }
-    } catch (err) {
-      // EN CAS D'ERREUR RÉSEAU, ON FORCE AUSSI LE SUCCÈS POUR TON TEST
-      console.error("Erreur API, redirection forcée vers Succès :", err);
+
+      // Supabase peut renvoyer dbError pour détails
+      if (data?.dbError) {
+        console.error('DB error:', data.dbError);
+        alert('Erreur en base de données: ' + (data.dbError.message || JSON.stringify(data.dbError)));
+        return;
+      }
+
+      // Tout s'est bien passé
       onComplete();
+    } catch (err) {
+      console.error('Erreur API:', err);
+      alert('Erreur réseau lors de la soumission.');
     } finally {
       setLoading(false);
     }
